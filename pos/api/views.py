@@ -227,16 +227,16 @@ class CategoryList(generics.ListAPIView):
     queryset = Category.objects.all().order_by('id')
     serializer_class =  CategorySerializer
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = CategorySerializer(queryset, many = True, 
-            context = {'request' : request})
-        response = {
-            'status' : status.HTTP_200_OK,
-            'message' : 'Retrive all data success...',
-            'data' : serializer.data
-        }
-        return Response(response, status = status.HTTP_200_OK)
+    # def list(self, request, *args, **kwargs):
+    #     queryset = self.get_queryset()
+    #     serializer = CategorySerializer(queryset, many = True, 
+    #         context = {'request' : request})
+    #     response = {
+    #         'status' : status.HTTP_200_OK,
+    #         'message' : 'Retrive all data success...',
+    #         'data' : serializer.data
+    #     }
+    #     return Response(response, status = status.HTTP_200_OK)
 
 class CategoryDetail(generics.RetrieveAPIView):
     queryset = Category.objects.all().order_by('id')
