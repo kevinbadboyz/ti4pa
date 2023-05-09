@@ -242,11 +242,11 @@ class CategoryDetail(generics.RetrieveAPIView):
     queryset = Category.objects.all().order_by('id')
     serializer_class =  CategorySerializer
 
-    # def get_object(self):
-    #     return super().get_object()
+    def get_object(self):
+        return super().get_object()
 
-    # def get(self, request, *args, **kwargs):
-    #     return super().get(request, *args, **kwargs)
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 # End Controller Category
 
 # Start Controller MenuResto
