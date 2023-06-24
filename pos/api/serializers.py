@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
+from django.db.models import Avg, Max, Min, Sum
 
 class TableRestoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,7 +32,7 @@ class LoginSerializer(serializers.Serializer):
                 if user.is_active and user.is_waitress:
                     data['user'] = user
                 else:
-                    msg = 'User is deactivated...'
+                    msg = 'You have no access...'
                     raise exceptions.ValidationError(msg)                    
                     # raise ValidationError({'message' : 'You have no access...'})                    
             else:
@@ -116,3 +117,82 @@ class MenuRestoSerializer(serializers.ModelSerializer):
         model = MenuResto
         fields = ('id', 'code', 'name', 'price', 'description',
             'image_menu', 'category', 'menu_status', 'status',)
+
+class MenuRestoViewSerializer(serializers.ModelSerializer):    
+    class Meta:        
+        model = MenuResto
+        fields = ['name', 'price', 'description', 'image_menu', 'menu_resto' ]
+
+class OrderMenuCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderMenu
+        fields = '__all__'        
+    
+    def create(self, validated_data):
+        req_table = validated_data.get('table_resto', None)        
+        print('Result : ' + str(req_table))
+        table_val = validated_data['table_resto'].id
+        print(table_val)    
+        current_order = OrderMenu.objects.filter(table_resto = table_val, 
+            order_status = 'Belum Bayar')    
+        if current_order.exists():
+            om_id = current_order.values('id').get()['id']
+            order_menu_details = list(OrderMenuDetail.objects.select_related('order_menu').\
+                filter(order_menu__id = om_id).defer('subtotal').aggregate(Sum('subtotal')).values())[0]
+            if(order_menu_details == None):
+                total = 0
+                ppn = 0
+                tot_payment = 0
+            else:
+                total = order_menu_details
+                ppn = 0.11 * float(order_menu_details)
+                tot_payment = float(total) + ppn
+            
+            print('----- Found current OrderMenu -----')
+            OrderMenu.objects.filter(id = om_id).update(total_order = total, tax_order = ppn, total_payment = tot_payment)
+            return current_order[0]
+        else:
+            print('----- Create New OrderMenu -----')
+            order_menu_instance = OrderMenu.objects.create(**validated_data)
+            TableResto.objects.filter(id = order_menu_instance.table_resto.id).update(table_status = 'Terisi')
+            return order_menu_instance
+
+class OrderMenuViewSerializer(serializers.ModelSerializer):
+    table_resto = TableRestoSerializer(many = False)
+
+    class Meta:
+        model = OrderMenu
+        fields = ('id', 'code', 'table_resto', 'cashier', 'waitress', 'order_status', 'status')
+
+class OrderMenuDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderMenuDetail                
+        fields = ('id', 'order_menu', 'menu_resto', 'quantity', 'subtotal', 'description', 'order_menu_detail_status', 'status', 'user_create')        
+
+    def create(self, validated_data):        
+        order_menu_detail = OrderMenuDetail.objects.create(**validated_data)
+        order_menu_detail.subtotal = order_menu_detail.quantity * order_menu_detail.menu_resto.price
+        order_menu_detail.save()
+        return order_menu_detail
+    
+    def update(self, instance, validated_data):
+        instance.menu_resto = validated_data.get('menu_resto', instance.menu_resto)
+        instance.quantity = validated_data.get('quantity', instance.quantity)
+        instance.description = validated_data.get('description', instance.description)
+        instance.order_menu_detail_status = validated_data.get('order_menu_detail_status', instance.order_menu_detail_status)
+        instance.subtotal = instance.quantity * instance.menu_resto.price
+        instance.subtotal = validated_data.get('subtotal', instance.subtotal)
+        instance.save()
+        return instance
+      
+class OrderMenuDetailViewSerializer(serializers.ModelSerializer):
+    menu_resto_id = serializers.CharField(source = 'menu_resto.id', read_only = True)
+    menu_resto_name = serializers.CharField(source = 'menu_resto.name', read_only = True)
+    menu_resto_price = serializers.DecimalField(source = 'menu_resto.price', read_only = True, max_digits = 10, decimal_places = 2)
+    menu_resto_image_menu = serializers.ImageField(source = 'menu_resto.image_menu', read_only = True)
+    menu_resto_description = serializers.CharField(source = 'menu_resto.description', read_only = True)
+    
+    class Meta:                        
+        model = OrderMenuDetail        
+        fields = ('id', 'menu_resto_id', 'menu_resto_name', 'menu_resto_price', 'menu_resto_image_menu', 'menu_resto_description', 'order_menu', 'quantity', 'subtotal', 'description', 'order_menu_detail_status', 'status')
+        

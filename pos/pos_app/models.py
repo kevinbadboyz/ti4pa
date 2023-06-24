@@ -209,36 +209,19 @@ class OrderMenu(models.Model):
         ('Belum Bayar','Belum Bayar'),
         ('Sudah Bayar', 'Sudah Bayar'),
 	)        
-    code = models.CharField(max_length = 20, 
-        default = increment_order_menu_code, editable = False)
-    table_resto = models.ForeignKey(TableResto, 
-        related_name = 'table_resto_order_menu', blank = True, null = True, 
-        on_delete = models.SET_NULL)    
-    cashier = models.ForeignKey(User, 
-        related_name = 'cashier_order_menu', blank = True, null = True, 
-        on_delete = models.SET_NULL)
-    waitress = models.ForeignKey(User, 
-        related_name = 'waitress_order_menu', blank = True, null = True, 
-        on_delete = models.SET_NULL)
-    order_status = models.CharField(max_length = 15, 
-        choices = status_order_status_choices, default = 'Belum Bayar')
-    total_order = models.DecimalField(max_digits = 10, default = 0, 
-        decimal_places = 2, blank = True, null = True)
+    code = models.CharField(max_length = 20, default = increment_order_menu_code, editable = False)
+    table_resto = models.ForeignKey(TableResto, related_name = 'table_resto_order_menu', blank = True, null = True, on_delete = models.SET_NULL)    
+    cashier = models.ForeignKey(User, related_name = 'cashier_order_menu', blank = True, null = True, on_delete = models.SET_NULL)
+    waitress = models.ForeignKey(User, related_name = 'waitress_order_menu', blank = True, null = True, on_delete = models.SET_NULL)
+    order_status = models.CharField(max_length = 15, choices = status_order_status_choices, default = 'Belum Bayar')
+    total_order = models.DecimalField(max_digits = 10, default = 0, decimal_places = 2, blank = True, null = True)
     tax_order = models.FloatField(default = 0, blank = True, null = True)
-    total_payment = models.DecimalField(max_digits = 10, default = 0, 
-        decimal_places = 2, blank = True, null = True)
-    payment = models.DecimalField(max_digits = 10, default = 0, 
-        decimal_places = 2, blank = True, null = True)
-    changed = models.DecimalField(max_digits = 10, default = 0, 
-        decimal_places = 2, blank = True, null = True)
-    status = models.CharField(max_length = 15, 
-        choices = status_choices, default = 'Aktif')
-    user_create = models.ForeignKey(User, 
-        related_name = 'user_create_order_menu', blank = True, null = True, 
-        on_delete = models.SET_NULL)
-    user_update = models.ForeignKey(User, 
-        related_name = 'user_update_order_menu', blank = True, null = True, 
-        on_delete = models.SET_NULL)
+    total_payment = models.DecimalField(max_digits = 10, default = 0, decimal_places = 2, blank = True, null = True)
+    payment = models.DecimalField(max_digits = 10, default = 0, decimal_places = 2, blank = True, null = True)
+    changed = models.DecimalField(max_digits = 10, default = 0, decimal_places = 2, blank = True, null = True)
+    status = models.CharField(max_length = 15, choices = status_choices, default = 'Aktif')
+    user_create = models.ForeignKey(User, related_name = 'user_create_order_menu', blank = True, null = True, on_delete = models.SET_NULL)
+    user_update = models.ForeignKey(User, related_name = 'user_update_order_menu', blank = True, null = True, on_delete = models.SET_NULL)
     created_on = models.DateTimeField(auto_now_add = True)
     last_modified = models.DateTimeField(auto_now = True)
 

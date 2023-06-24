@@ -9,7 +9,8 @@ from pos_app.models import (
 from api.serializers import (
     TableRestoSerializer, LoginSerializer, ProfileSerializer, ProfileSerializerII,
     RegisterWaitressSerializer, CategorySerializer, 
-    MenuRestoSerializer,
+    MenuRestoSerializer, OrderMenuCreateSerializer, OrderMenuViewSerializer,
+    OrderMenuDetailSerializer, OrderMenuDetailViewSerializer,
 )
 from rest_framework import generics
 from rest_framework.generics import GenericAPIView
@@ -18,9 +19,11 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import login as django_login, logout as django_logout
 from django.http import HttpResponse, JsonResponse
+from rest_framework import filters
 
 # Start Controller TableResto
-class TableRestoListApiView(APIView):    
+class TableRestoListApiView(APIView):
+    permission_classes = [IsAuthenticated]   
 
     def get(self, request, *args, **kwargs):
         table_restos = TableResto.objects.all()
@@ -52,6 +55,7 @@ class TableRestoListApiView(APIView):
         return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
     
 class TableRestoDetailApiView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get_object(self, id):
         try:
@@ -158,12 +162,34 @@ class LogoutView(APIView):
         django_logout(request)
         return JsonResponse({'message' : 'You have been logout...'})
 
-class RegisterWaitressAPI(generics.CreateAPIView):
-    queryset = User.objects.all()
+# class RegisterWaitressAPI(generics.CreateAPIView):
+#     queryset = User.objects.all()
+#     serializer_class = RegisterWaitressSerializer
+
+class RegisterWaitressAPI(APIView):
     serializer_class = RegisterWaitressSerializer
+    
+    def post(self, request, format = None):
+        serializer = self.serializer_class(data = request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+
+            response_data = {
+                'status' : status.HTTP_201_CREATED,
+                'message' : 'Selamat anda telah terdaftar...',
+                'data' : serializer.data,                
+            }
+            return Response(response_data, status = status.HTTP_201_CREATED)        
+        return Response({
+            'status' : status.HTTP_400_BAD_REQUEST,
+            'message' : 'Terjadi error...',
+            'data' : serializer.errors,
+        }, status = status.HTTP_400_BAD_REQUEST)
 
 # Start Controller Profile
 class ProfileDetailApiView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get_object(self, user_id):
         try:            
             return Profile.objects.get(user = user_id)                    
@@ -223,41 +249,54 @@ class ProfileDetailApiView(APIView):
 # End Controller Profile
 
 # Start Controller Category
-class CategoryList(generics.ListAPIView):
-    queryset = Category.objects.all().order_by('id')
-    serializer_class =  CategorySerializer
+class CategoryListApiView(APIView):
+    permission_classes = [IsAuthenticated]   
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = CategorySerializer(queryset, many = True, 
-            context = {'request' : request})
+    def get(self, request, *args, **kwargs):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many = True)
         response = {
             'status' : status.HTTP_200_OK,
             'message' : 'Retrive all data success...',
             'data' : serializer.data
         }
+        return Response(response, status = status.HTTP_200_OK)        
+
+class CategoryDetailApiView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, id):
+        try:
+            return Category.objects.get(id = id)
+        except Category.DoesNotExist:
+            return None
+        
+    def get(self, request, id, *args, **kwargs):
+        category_instance = self.get_object(id)
+        if not category_instance:
+            return Response(
+                {
+                    'status' : status.HTTP_400_BAD_REQUEST,
+                    'message' : 'Data does not exists...',
+                    'data' : {}
+                }, status = status.HTTP_400_BAD_REQUEST 
+            )
+
+        serializer = CategorySerializer(category_instance)
+        response = {
+            'status' : status.HTTP_200_OK, 
+            'message' : 'Data retrieve successfully...',
+            'data' : serializer.data 
+        }
         return Response(response, status = status.HTTP_200_OK)
-
-class CategoryDetail(generics.RetrieveAPIView):
-    queryset = Category.objects.all().order_by('id')
-    serializer_class =  CategorySerializer
-
-    def get_object(self):
-        return super().get_object()
-
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
 # End Controller Category
 
 # Start Controller MenuResto
-class MenuRestoList(generics.ListAPIView):
-    queryset = MenuResto.objects.all().order_by('id')
-    serializer_class =  MenuRestoSerializer
-    permission_classes = [IsAuthenticated]
+class MenuRestoListApiView(APIView):    
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = MenuRestoSerializer(queryset, many = True, 
+    def get(self, request, *args, **kwargs):
+        menu_restos = MenuResto.objects.all()
+        serializer = MenuRestoSerializer(menu_restos, many = True,
             context = {'request' : request})
         response = {
             'status' : status.HTTP_200_OK,
@@ -266,48 +305,116 @@ class MenuRestoList(generics.ListAPIView):
         }
         return Response(response, status = status.HTTP_200_OK)
 
-# class MenuRestoList(APIView) run successfully
-# class MenuRestoList(APIView):    
-
-#     def get(self, request, *args, **kwargs):
-#         menu_restos = MenuResto.objects.all()
-#         serializer = MenuRestoSerializer(menu_restos, many = True,
-#             context = {'request' : request})
-#         response = {
-#             'status' : status.HTTP_200_OK,
-#             'message' : 'Retrive all data success...',
-#             'data' : serializer.data
-#         }
-#         return Response(response, status = status.HTTP_200_OK)
-
-class MenuRestoDetail(generics.RetrieveUpdateAPIView):
-    queryset = MenuResto.objects.all().order_by('id')
-    serializer_class =  MenuRestoSerializer
+class MenuRestoDetailApiView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # def get_object(self, pk):
-    #     try:            
-    #         return MenuResto.objects.get(pk = pk)                    
-    #     except MenuResto.DoesNotExist:
-    #         return None            
-    
-    # # Retrieve data in Profile model
-    # def get(self, request, pk, *args, **kwargs):
-    #     menu_resto_instance = self.get_object(pk)
-    #     if not menu_resto_instance:
-    #         return Response(
-    #             {
-    #                 'status' : status.HTTP_400_BAD_REQUEST,
-    #                 'message' : 'Data does not exists...',
-    #                 'data' : {}
-    #             }, status = status.HTTP_400_BAD_REQUEST
-    #         )
+    def get_object(self, id):
+        try:
+            return MenuResto.objects.get(id = id)
+        except MenuResto.DoesNotExist:
+            return None
         
-    #     serializer = MenuRestoSerializer(menu_resto_instance, context = {'request' : request})
-    #     response = {
-    #             'status' : status.HTTP_200_OK,
-    #             'message' : 'Data retrieve successfully...',
-    #             'data' : serializer.data
-    #         }
-    #     return Response(response, status = status.HTTP_200_OK)
+    def get(self, request, id, *args, **kwargs):
+        menu_resto_instance = self.get_object(id)
+        if not menu_resto_instance:
+            return Response(
+                {
+                    'status' : status.HTTP_400_BAD_REQUEST,
+                    'message' : 'Data does not exists...',
+                    'data' : {}
+                }, status = status.HTTP_400_BAD_REQUEST 
+            )
+
+        serializer = MenuRestoSerializer(menu_resto_instance, context = {'request' : request})
+        response = {
+            'status' : status.HTTP_200_OK, 
+            'message' : 'Data retrieve successfully...',
+            'data' : serializer.data 
+        }
+        return Response(response, status = status.HTTP_200_OK)
 # End Controller MenuResto
+
+# Start Controller OrderMenu
+class OrderMenuCreateApi(generics.CreateAPIView):
+    queryset = OrderMenu.objects.all()
+    serializer_class = OrderMenuCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class OrderMenuListApiView(APIView):
+    permission_classes = [IsAuthenticated]   
+
+    def get(self, request, *args, **kwargs):
+        order_menus = OrderMenu.objects.all()
+        serializer = OrderMenuCreateSerializer(order_menus, many = True)
+        response = {
+            'status' : status.HTTP_200_OK,
+            'message' : 'Retrive all data success...',
+            'data' : serializer.data
+        }
+        return Response(response, status = status.HTTP_200_OK)
+
+    def post(self, request, *args,**kwargs):
+        data = {
+            'table_resto' : request.data.get('table_resto'),
+            'waitress' : request.data.get('waitress'),
+            'user_create' : request.data.get('user_create'),            
+        }
+        serializer = OrderMenuCreateSerializer(data = data)
+        if serializer.is_valid():
+            serializer.save()
+            response = {
+                'status' : status.HTTP_201_CREATED,
+                'message' : 'Data created successfully...',
+                'data' : serializer.data
+            }
+            return Response(response, status = status.HTTP_201_CREATED)            
+
+        return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+
+class OrderMenuFilterApi(generics.ListAPIView):
+    queryset = OrderMenu.objects.all()
+    serializer_class = OrderMenuViewSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['table_resto__id',]
+# End Controller OrderMenu
+
+# Start Controller OrderMenuDetail
+class OrderMenuDetailListAPIView(generics.ListAPIView):
+    serializer_class = OrderMenuDetailViewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self, *args, **kwargs):
+        query_list = OrderMenuDetail.objects.select_related('menu_resto').all().order_by('id')
+        query = self.request.GET.get('q')
+        if query:
+            query_list = query_list.filter(order_menu__id = query).distinct()
+        return query_list
+    
+# class OrderMenuDetailCreate(generics.CreateAPIView):
+#     queryset = OrderMenuDetail.objects.all().order_by('id')
+#     serializer_class = OrderMenuDetailSerializer
+#     permission_classes = [IsAuthenticated]
+
+class OrderMenuDetailCreateApiView(APIView):
+    permission_classes = [IsAuthenticated]   
+
+    def post(self, request, *args,**kwargs):
+        data = {
+            'order_menu' : request.data.get('order_menu'),
+            'menu_resto' : request.data.get('menu_resto'),
+            'user_create' : request.data.get('user_create'),     
+            'quantity' : request.data.get('quantity'),       
+        }
+        serializer = OrderMenuDetailSerializer(data = data)
+        if serializer.is_valid():
+            serializer.save()
+            response = {
+                'status' : status.HTTP_201_CREATED,
+                'message' : 'Data created successfully...',
+                'data' : serializer.data
+            }
+            return Response(response, status = status.HTTP_201_CREATED)            
+
+        return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+
+# End Controller OrderMenuDetail
